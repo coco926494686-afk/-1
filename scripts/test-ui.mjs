@@ -41,7 +41,7 @@ try {
  await retryPage.setContent('<iframe style="width:1040px;height:760px"></iframe>');
  await retryPage.evaluate(html=>{window.requests=[];window.addEventListener('message',e=>window.requests.push(e.data.pluginMessage));document.querySelector('iframe').srcdoc=html;},await readFile('dist/ui.html','utf8'));
  const retryUI=retryPage.frameLocator('iframe');
- await retryPage.waitForFunction(()=>document.querySelector('iframe').contentDocument.getElementById('status')?.textContent.includes('未收到 Figma 响应'),{},{timeout:12000});
+ await retryPage.waitForFunction(()=>document.querySelector('iframe').contentDocument.getElementById('status')?.textContent.includes('未收到 Figma 主程序响应'),{},{timeout:12000});
  assert(await retryUI.locator('#reconnect').isEnabled());assert(await retryUI.locator('#scan').isDisabled());
  await retryUI.locator('#reconnect').click();
  await retryPage.evaluate(library=>{const w=document.querySelector('iframe').contentWindow;w.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:w}));},library);
