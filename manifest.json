@@ -1,0 +1,10 @@
+{
+  "name": "Frame Skin · 免费一键换肤",
+  "id": "frame-skin-free-local",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] }
+}

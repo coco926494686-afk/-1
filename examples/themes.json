@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "tokens": [
+    {
+      "id": "cffffff",
+      "name": "表面 / 卡片 #FFFFFF"
+    },
+    {
+      "id": "cf8fafc",
+      "name": "表面 / 卡片 #F8FAFC"
+    },
+    {
+      "id": "c172033",
+      "name": "文字 / 主要 #172033"
+    },
+    {
+      "id": "c2563eb",
+      "name": "品牌 / 强调 #2563EB"
+    },
+    {
+      "id": "cd1d5db",
+      "name": "背景 / 画布 #D1D5DB"
+    }
+  ],
+  "mappings": [
+    {
+      "source": "#FFFFFF",
+      "tokenId": "cffffff"
+    },
+    {
+      "source": "#F8FAFC",
+      "tokenId": "cf8fafc"
+    },
+    {
+      "source": "#172033",
+      "tokenId": "c172033"
+    },
+    {
+      "source": "#2563EB",
+      "tokenId": "c2563eb"
+    },
+    {
+      "source": "#D1D5DB",
+      "tokenId": "cd1d5db"
+    }
+  ],
+  "themes": [
+    {
+      "id": "mvt7ajb7-i9ckltd1",
+      "name": "经典蓝",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#172033",
+        "c2563eb": "#2563EB",
+        "cd1d5db": "#F8FAFC"
+      }
+    },
+    {
+      "id": "mvt7ajb7-lduotmed",
+      "name": "午夜蓝",
+      "colors": {
+        "cffffff": "#1E293B",
+        "cf8fafc": "#1E293B",
+        "c172033": "#F1F5F9",
+        "c2563eb": "#60A5FA",
+        "cd1d5db": "#0F172A"
+      }
+    },
+    {
+      "id": "mvt7ajb7-8dkjuamg",
+      "name": "森林",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#163C31",
+        "c2563eb": "#16856B",
+        "cd1d5db": "#F1F8F4"
+      }
+    },
+    {
+      "id": "mvt7ajb7-bbggkytu",
+      "name": "薄荷",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#134E4A",
+        "c2563eb": "#0D9488",
+        "cd1d5db": "#ECFDF5"
+      }
+    },
+    {
+      "id": "mvt7ajb7-mwhtjm9s",
+      "name": "紫罗兰",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#2E1065",
+        "c2563eb": "#7C3AED",
+        "cd1d5db": "#F5F3FF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-722dbq38",
+      "name": "薰衣草",
+      "colors": {
+        "cffffff": "#302444",
+        "cf8fafc": "#302444",
+        "c172033": "#F5F3FF",
+        "c2563eb": "#A78BFA",
+        "cd1d5db": "#1E1730"
+      }
+    },
+    {
+      "id": "mvt7ajb7-z0ajabpx",
+      "name": "玫瑰",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#4C0519",
+        "c2563eb": "#E11D48",
+        "cd1d5db": "#FFF1F2"
+      }
+    },
+    {
+      "id": "mvt7ajb7-9os8qm72",
+      "name": "樱花",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#500724",
+        "c2563eb": "#DB2777",
+        "cd1d5db": "#FDF2F8"
+      }
+    },
+    {
+      "id": "mvt7ajb7-k1k6kcfr",
+      "name": "暖橙",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#431407",
+        "c2563eb": "#EA580C",
+        "cd1d5db": "#FFF7ED"
+      }
+    },
+    {
+      "id": "mvt7ajb7-8sthw884",
+      "name": "琥珀",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#451A03",
+        "c2563eb": "#D97706",
+        "cd1d5db": "#FFFBEB"
+      }
+    },
+    {
+      "id": "mvt7ajb7-1bog8lnq",
+      "name": "海洋",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#082F49",
+        "c2563eb": "#0284C7",
+        "cd1d5db": "#F0F9FF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-h2z26pa0",
+      "name": "冰川",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#164E63",
+        "c2563eb": "#0891B2",
+        "cd1d5db": "#ECFEFF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-3ygsqcpz",
+      "name": "青柠",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#1A2E05",
+        "c2563eb": "#4D7C0F",
+        "cd1d5db": "#F7FEE7"
+      }
+    },
+    {
+      "id": "mvt7ajb7-4rs1cijv",
+      "name": "橄榄",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#293214",
+        "c2563eb": "#65743A",
+        "cd1d5db": "#F7F8F0"
+      }
+    },
+    {
+      "id": "mvt7ajb7-mtaomykr",
+      "name": "咖啡",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#38251B",
+        "c2563eb": "#916345",
+        "cd1d5db": "#FAF5F0"
+      }
+    },
+    {
+      "id": "mvt7ajb7-t80aeqnv",
+      "name": "沙丘",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#40301E",
+        "c2563eb": "#A17843",
+        "cd1d5db": "#FBF7EF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-wxzew44y",
+      "name": "石墨",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#18181B",
+        "c2563eb": "#52525B",
+        "cd1d5db": "#FAFAFA"
+      }
+    },
+    {
+      "id": "mvt7ajb7-nmxhjf5i",
+      "name": "极夜",
+      "colors": {
+        "cffffff": "#18181B",
+        "cf8fafc": "#18181B",
+        "c172033": "#FAFAFA",
+        "c2563eb": "#A1A1AA",
+        "cd1d5db": "#09090B"
+      }
+    },
+    {
+      "id": "mvt7ajb7-28gzossp",
+      "name": "靛青",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#1E1B4B",
+        "c2563eb": "#4F46E5",
+        "cd1d5db": "#EEF2FF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-twop421o",
+      "name": "珊瑚",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#4A261D",
+        "c2563eb": "#E76F51",
+        "cd1d5db": "#FFF5F1"
+      }
+    },
+    {
+      "id": "mvt7ajb7-86d4ggg6",
+      "name": "葡萄",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#3B0764",
+        "c2563eb": "#9333EA",
+        "cd1d5db": "#FAF5FF"
+      }
+    },
+    {
+      "id": "mvt7ajb7-1qipriij",
+      "name": "深海",
+      "colors": {
+        "cffffff": "#164E63",
+        "cf8fafc": "#164E63",
+        "c172033": "#ECFEFF",
+        "c2563eb": "#22D3EE",
+        "cd1d5db": "#083344"
+      }
+    },
+    {
+      "id": "mvt7ajb7-ufxlcbxl",
+      "name": "酒红",
+      "colors": {
+        "cffffff": "#FFFFFF",
+        "cf8fafc": "#FFFFFF",
+        "c172033": "#4C0519",
+        "c2563eb": "#BE123C",
+        "cd1d5db": "#FFF1F2"
+      }
+    },
+    {
+      "id": "mvt7ajb7-5kwr9kri",
+      "name": "松柏",
+      "colors": {
+        "cffffff": "#064E3B",
+        "cf8fafc": "#064E3B",
+        "c172033": "#ECFDF5",
+        "c2563eb": "#34D399",
+        "cd1d5db": "#052E26"
+      }
+    }
+  ]
+}
