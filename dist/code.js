@@ -506,18 +506,23 @@
     undo = [];
     send("stale", { message: "\u9875\u9762\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u3002" });
   });
+  var startupWarning = "";
   var ready = (async () => {
     try {
       const stored = await figma.clientStorage.getAsync(STORE);
       if (stored) library = validateLibrary(stored);
     } catch (e) {
-      send("error", { message: "\u672C\u5730\u4E3B\u9898\u5E93\u8BFB\u53D6\u5931\u8D25\uFF1A" + errorText(e) + "\u3002\u53EF\u901A\u8FC7 JSON \u5BFC\u5165\u6062\u590D\uFF1B\u672A\u81EA\u52A8\u8986\u76D6\u5B58\u50A8\u3002" });
+      startupWarning = "\u672C\u5730\u4E3B\u9898\u5E93\u8BFB\u53D6\u5931\u8D25\uFF1A" + errorText(e) + "\u3002\u53EF\u901A\u8FC7 JSON \u5BFC\u5165\u6062\u590D\uFF1B\u672A\u81EA\u52A8\u8986\u76D6\u5B58\u50A8\u3002";
     }
-    send("init", { library });
   })();
   figma.ui.onmessage = async (message) => {
     if (!message || typeof message !== "object") return;
     const m = message;
+    if (m.type === "ready") {
+      await ready;
+      send("init", { library, busy, warning: startupWarning });
+      return;
+    }
     if (busy) {
       send("error", { message: "\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u9879\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u5019" });
       return;

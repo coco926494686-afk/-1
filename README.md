@@ -21,7 +21,7 @@
 
 ```bash
 npm ci
-npm run check      # 类型检查 + 25 项自动化测试 + 构建
+npm run check      # 类型检查 + 27 项自动化测试 + 构建
 npm run dev        # 监听 src，修改后在 Figma 重新运行插件
 ```
 
@@ -35,6 +35,10 @@ BROWSER_PATH=/path/to/chromium npm run test:ui
 ```
 
 该测试会启动本地 headless Chromium，生成 `artifacts/plugin-ui.png`。不访问 Figma，也不需要登录；它验证的是插件 iframe UI。
+
+## v1.0.1：修复启动后所有按钮灰色
+
+UI 安装消息监听后主动握手，避免初始化消息早于界面加载而丢失；兼容 Figma 原生消息的空来源与自身窗口来源；连接超时后自动重试并显示可操作的错误提示。更新时关闭插件，将新版文件覆盖到原 manifest 所在目录（特别是 dist/），再重新运行。界面顶部应显示 v1.0.1。
 
 ## 在 Figma 开发模式导入
 
@@ -122,6 +126,6 @@ artifacts/            UI 截图与测试记录
 
 ## 验证结果与实际限制
 
-详见 `artifacts/VALIDATION.md`。25 项测试使用可变内存 Frame 和 Figma API mock，运行实际生产引擎与打包控制器；覆盖颜色准确性、透明度、文字区间、样式跳过、JSON 校验、回滚、撤销、切页保护和 20 套批量生成。浏览器测试运行真实 UI 构建产物。
+详见 `artifacts/VALIDATION.md`。27 项测试使用可变内存 Frame 和 Figma API mock，运行实际生产引擎与打包控制器；覆盖颜色准确性、透明度、文字区间、样式跳过、JSON 校验、回滚、撤销、切页保护和 20 套批量生成。浏览器测试运行真实 UI 构建产物。
 
 **云环境没有 Figma 桌面宿主，尚未在真实 Figma 文件内执行验证，也未发布到 Figma 社区。** 内存测试不能替代 Figma 宿主验收，因此插件强制先执行真实测试 Frame 验证；若你的字体或 API 环境拒绝修改，批量不会开放。自检通过后仍应先小批量检查自己的真实组件和样式。

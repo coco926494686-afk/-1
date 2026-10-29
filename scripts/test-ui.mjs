@@ -9,8 +9,11 @@ try {
  const ui=page.frameLocator('iframe');await ui.locator('#frame-name').waitFor();
  const library={version:1,tokens:[{id:'surface',name:'表面 / 卡片'},{id:'text',name:'文字 / 主要'},{id:'accent',name:'品牌 / 强调'}],mappings:[{source:'#FFFFFF',tokenId:'surface'},{source:'#111111',tokenId:'text'},{source:'#2563EB',tokenId:'accent'}],themes:Array.from({length:24},(_,i)=>({id:'theme-'+i,name:i?'主题 '+(i+1):'经典蓝',colors:{surface:i%2?'#1E293B':'#FFFFFF',text:i%2?'#F1F5F9':'#111111',accent:i%2?'#60A5FA':'#2563EB'}}))};
  async function send(m){await page.evaluate(m=>document.querySelector('iframe').contentWindow.postMessage({pluginMessage:m},'*'),m);}
+ // Reproduce a late host reply through Figma's native (source=null) event bridge.
+ await page.waitForFunction(()=>window.requests.some(m=>m.type==='ready'));
+ await page.evaluate(library=>document.querySelector('iframe').contentWindow.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:null})),library);
  await send({type:'init',library});await ui.locator('.theme-row').nth(23).waitFor();assert.equal(await ui.locator('.theme-row').count(),24);
- assert(await ui.locator('#apply').isDisabled());
+ assert(await ui.locator('#apply').isDisabled());assert(await ui.locator('#scan').isEnabled());assert(await ui.locator('#reconnect').isHidden());
  await send({type:'scan',library,name:'Mobile / Standard',nodes:12,slots:8,colors:[{source:'#FFFFFF',count:2,roles:['填充']},{source:'#111111',count:3,roles:['文字']},{source:'#2563EB',count:3,roles:['填充','描边']}],issues:[{node:'Image',reason:'图片填充保持原样'}],fixturePassed:false});
  await ui.locator('#apply').waitFor({state:'visible'});assert(await ui.locator('#apply').isEnabled());assert(await ui.locator('#batch').isDisabled());
  await ui.locator('.theme-choice').nth(1).click();assert.equal(await ui.locator('#theme-name').inputValue(),'主题 2');assert((await ui.locator('#preview-colors').textContent()).includes('#60A5FA'));
@@ -31,5 +34,16 @@ try {
  await send({type:'stale',message:'选择已变化，请重新扫描'});assert(await ui.locator('#apply').isDisabled());assert(await ui.locator('#undo').isDisabled());
  await send({type:'scan',library,name:'Mobile / Standard',nodes:12,slots:8,colors:[{source:'#FFFFFF',count:2,roles:['填充']},{source:'#111111',count:3,roles:['文字']},{source:'#2563EB',count:3,roles:['填充']}],issues:[],fixturePassed:true});await ui.locator('.theme-choice').nth(1).click();
  await mkdir('artifacts',{recursive:true});await page.screenshot({path:'artifacts/plugin-ui.png',fullPage:true});
- assert.deepEqual(errors,[]);console.log('UI: 24 presets, theme edits, mapping, token CRUD, JSON export/import, validation, batch gating, stale/busy guards: PASS');
+ // A missing host must show a recoverable error rather than an indefinitely disabled UI.
+ const retryPage=await browser.newPage();retryPage.on('pageerror',e=>errors.push(String(e)));
+ await retryPage.setContent('<iframe style="width:1040px;height:760px"></iframe>');
+ await retryPage.evaluate(html=>{window.requests=[];window.addEventListener('message',e=>window.requests.push(e.data.pluginMessage));document.querySelector('iframe').srcdoc=html;},await readFile('dist/ui.html','utf8'));
+ const retryUI=retryPage.frameLocator('iframe');
+ await retryPage.waitForFunction(()=>document.querySelector('iframe').contentDocument.getElementById('status')?.textContent.includes('未收到 Figma 响应'),{},{timeout:12000});
+ assert(await retryUI.locator('#reconnect').isEnabled());assert(await retryUI.locator('#scan').isDisabled());
+ await retryUI.locator('#reconnect').click();
+ await retryPage.evaluate(library=>{const w=document.querySelector('iframe').contentWindow;w.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:w}));},library);
+ await retryPage.waitForFunction(()=>!document.querySelector('iframe').contentDocument.getElementById('scan').disabled);
+ assert(await retryUI.locator('#scan').isEnabled());await retryPage.close();
+ assert.deepEqual(errors,[]);console.log('UI: native source=null startup handshake, delayed initialization, duplicate init, timeout and retry, 24 presets, theme edits, mapping, token CRUD, JSON export/import, validation, batch gating, stale/busy guards: PASS');
 }finally{await browser.close();}

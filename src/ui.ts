@@ -1,13 +1,17 @@
 import { ColorInfo, emptyLibrary, Library, replacement, Theme, uid, validHex, validateLibrary } from './model';
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 let lib:Library=emptyLibrary(),active='',colors:ColorInfo[]=[],checked=new Set<string>(),scanned=false,fixturePassed=false,busy=true,canUndo=false,dirty=false,thumbURL='';
+let initialized=false,startupAttempts=0;
+let startupTimer:ReturnType<typeof setTimeout>|undefined;
 let pendingConfirm:(()=>void)|null=null;
 const post=(type:string,extra:Record<string,unknown>={})=>parent.postMessage({pluginMessage:{type,...extra}},'*');
 function status(message:string,kind=''){ $('status').textContent=message;$('status').className='status '+kind; }
 function changed(){dirty=true;$('storage-state').textContent='有未保存的主题更改 · 应用 / 扫描时也会保存';refreshPreview();}
 function theme():Theme|undefined{return lib.themes.find(t=>t.id===active);}
 function buttonState(){
- document.querySelectorAll<HTMLButtonElement>('button:not(#sample-button)').forEach(b=>{b.disabled=busy;});
+ $('reconnect').hidden=initialized;
+
+ document.querySelectorAll<HTMLButtonElement>('button:not(#sample-button)').forEach(b=>{b.disabled=b.id==='reconnect'?false:busy;});
  document.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=busy);
  $('apply').toggleAttribute('disabled',busy||!scanned||!theme());
  $('batch').toggleAttribute('disabled',busy||!scanned||!fixturePassed||checked.size===0||checked.size>40);
@@ -101,11 +105,12 @@ $<HTMLInputElement>('file').onchange=async()=>{
  if(file.size>2*1024*1024){status('JSON 文件不能超过 2 MB','error');return;}
  try{const next=validateLibrary(JSON.parse(await file.text()));confirmAction('导入主题库',`用文件中的 ${next.themes.length} 套主题和 ${next.tokens.length} 个 Token 替换当前主题库？建议先导出备份。画布不会改变。`,()=>{lib=next;active=lib.themes[0]?.id||'';checked=new Set(active?[active]:[]);changed();render();status('已载入 JSON，请检查映射后保存主题库。');});}catch(e){status('导入失败：'+String(e),'error');}
 };
-window.onmessage=event=>{
- if(event.source!==parent)return;
- const m=event.data.pluginMessage;if(!m||typeof m.type!=='string')return;
+function receive(event:MessageEvent){
+ // Figma native bridges can dispatch with source=null or source=window.
+ if(event.source&&event.source!==parent&&event.source!==window)return;
+ const m=event.data?.pluginMessage;if(!m||typeof m.type!=='string')return;
  if(m.type==='init'||m.type==='scan'||m.type==='saved'){
-  if(m.type==='init')busy=false;
+  if(m.type==='init'){if(initialized)return;initialized=true;clearTimeout(startupTimer);busy=!!m.busy;status(m.warning||'连接成功。请选择一个 Frame，再点击“扫描当前 Frame”。',m.warning?'error':'');}
   if(m.library){lib=validateLibrary(m.library);if(!lib.themes.some(t=>t.id===active))active=lib.themes[0]?.id||'';checked=new Set([...checked].filter(id=>lib.themes.some(t=>t.id===id)));if(!checked.size&&active)checked.add(active);dirty=false;$('storage-state').textContent='主题保存在插件本地，可用 JSON 备份。';}
   if(m.type==='scan'){
    scanned=true;canUndo=false;colors=m.colors;fixturePassed=!!m.fixturePassed;$('frame-name').textContent=m.name;$('frame-stats').textContent=`${m.nodes} 个扫描图层 · ${colors.length} 种可编辑源颜色 · ${m.slots} 个颜色属性（含文字区间）`;
@@ -124,5 +129,18 @@ window.onmessage=event=>{
  $('test-state').textContent=fixturePassed?'✓ 本次插件会话的测试 Frame 验证已通过':'先运行测试 Frame 验证，验证通过后开放批量。';
  if(m.type==='saved')status('主题库已保存。','success');
 };
+window.onmessage=event=>{try{receive(event);}catch(error){status('插件消息处理失败：'+String(error)+'。请重启插件或重试连接。','error');}};
+function connect(){
+ if(initialized)return;
+ clearTimeout(startupTimer);startupAttempts++;post('ready');
+ status('正在连接 Figma…');
+ startupTimer=setTimeout(()=>{
+  if(initialized)return;
+  if(startupAttempts<3)connect();
+  else{status('未收到 Figma 响应，请点击“重试连接”；仍无响应时请关闭并重新运行插件。','error');$('reconnect').hidden=false;buttonState();}
+ },2000);
+}
+$('reconnect').onclick=()=>{startupAttempts=0;connect();};
 window.addEventListener('beforeunload',()=>{if(thumbURL)URL.revokeObjectURL(thumbURL);});
 render();
+connect();

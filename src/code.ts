@@ -106,13 +106,15 @@ async function testFixture(){
 }
 figma.on('selectionchange',()=>{if(scan&&(figma.currentPage.id!==pageId||figma.currentPage.selection.length!==1||figma.currentPage.selection[0].id!==scan.frame.id))send('stale',{message:'选择已变化，请扫描当前 Frame。'});});
 figma.on('currentpagechange',()=>{scan=null;undo=[];send('stale',{message:'页面已变化，请重新扫描。'});});
-let ready:Promise<void>=(async()=>{
- try{const stored=await figma.clientStorage.getAsync(STORE);if(stored)library=validateLibrary(stored);}catch(e){send('error',{message:'本地主题库读取失败：'+errorText(e)+'。可通过 JSON 导入恢复；未自动覆盖存储。'});}
- send('init',{library});
+let startupWarning='';
+const ready:Promise<void>=(async()=>{
+ try{const stored=await figma.clientStorage.getAsync(STORE);if(stored)library=validateLibrary(stored);}catch(e){startupWarning='本地主题库读取失败：'+errorText(e)+'。可通过 JSON 导入恢复；未自动覆盖存储。';}
 })();
 figma.ui.onmessage=async(message:unknown)=>{
  if(!message||typeof message!=='object')return;
  const m=message as {type:string;library?:unknown;themeId?:unknown;themeIds?:unknown};
+ // The UI may mount after storage finishes. Reply only after its ready handshake.
+ if(m.type==='ready'){await ready;send('init',{library,busy,warning:startupWarning});return;}
  if(busy){send('error',{message:'正在处理上一项操作，请稍候'});return;}busy=true;send('busy',{busy:true});
  try{
   await ready;
