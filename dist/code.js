@@ -141,7 +141,19 @@
   }
 
   // src/engine.ts
-  var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function same(a, b, inColor = false) {
+    if (typeof a === "number" && typeof b === "number") return inColor ? Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6 : Object.is(a, b);
+    if (a === b) return true;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => same(v, b[i]));
+    const x = a, y = b;
+    const keys = Object.keys(x).filter((k) => x[k] !== void 0).sort(), other = Object.keys(y).filter((k) => y[k] !== void 0).sort();
+    return keys.length === other.length && keys.every((k, i) => k === other[i] && same(x[k], y[k], inColor || k === "color" || k === "secondaryColor"));
+  }
+  function mismatch(actual, expected) {
+    return "\u9884\u671F " + JSON.stringify(expected).slice(0, 500) + "\uFF1B\u5B9E\u9645 " + JSON.stringify(actual).slice(0, 500);
+  }
   var copy = (x) => structuredCloneSafe(x);
   function bound(value) {
     if (!value || typeof value !== "object") return false;
@@ -264,15 +276,19 @@
     const done = [];
     try {
       for (const p of patches) {
-        p.slot.write(copy(p.after));
+        const requested = copy(p.after);
+        p.slot.write(requested);
         done.push(p);
-        p.slot.expected = copy(p.after);
+        const actual = copy(p.slot.read());
+        if (!same(actual, requested)) throw Error(p.slot.node.name + " / " + p.slot.property + " \u989C\u8272\u5199\u5165\u6821\u9A8C\u5931\u8D25\uFF1A" + mismatch(actual, requested));
+        p.after = actual;
+        p.slot.expected = copy(actual);
       }
     } catch (error) {
       let failed = false;
       for (const p of done.reverse()) try {
         p.slot.write(copy(p.before));
-        p.slot.expected = copy(p.before);
+        p.slot.expected = copy(p.slot.read());
       } catch (e) {
         failed = true;
       }
@@ -298,7 +314,10 @@
     if (node.type === "TEXT") data.runs = node.getStyledTextSegments(["fills", "fillStyleId", "fontName", "fontSize", "textStyleId", "textCase", "textDecoration", "letterSpacing", "lineHeight", "hyperlink", "listOptions", "indentation"]);
     if (typeof node.getPluginDataKeys === "function") data.pluginData = Object.fromEntries(node.getPluginDataKeys().map((k) => [k, node.getPluginData(k)]));
     if ("children" in node) data.children = node.children.map(fingerprint);
-    return JSON.stringify(data);
+    return JSON.stringify(data, (_key, value) => {
+      if (value && typeof value === "object" && !Array.isArray(value)) return Object.fromEntries(Object.keys(value).sort().map((k) => [k, value[k]]));
+      return value;
+    });
   }
 
   // src/code.ts
@@ -495,7 +514,11 @@
       await prepareFonts(patches, (font) => figma.loadFontAsync(font));
       if (figma.currentPage.id !== page.id) throw Error("\u6D4B\u8BD5\u671F\u95F4\u9875\u9762\u5DF2\u53D8\u5316");
       execute(patches);
-      if (!patches.length || !test.slots.every((slot) => same(slot.read(), themedValue(slot.original, lib, theme)))) throw Error("\u989C\u8272\u66FF\u6362\u65AD\u8A00\u5931\u8D25");
+      if (!patches.length) throw Error("\u6D4B\u8BD5\u672A\u4EA7\u751F\u4EFB\u4F55\u66FF\u6362\uFF0C\u9A8C\u8BC1\u672A\u901A\u8FC7");
+      for (const slot of test.slots) {
+        const expected = themedValue(slot.original, lib, theme);
+        if (!same(slot.read(), expected)) throw Error("\u989C\u8272\u66FF\u6362\u6821\u9A8C\u5931\u8D25\uFF1A" + slot.node.name + " / " + slot.property + "\uFF1B" + mismatch(slot.read(), expected));
+      }
       if (!test.issues.some((i) => i.reason.includes("\u6E10\u53D8")) || !test.issues.some((i) => i.reason.includes("\u9501\u5B9A"))) throw Error("\u517C\u5BB9\u6027\u68C0\u67E5\u65AD\u8A00\u5931\u8D25");
       execute(reversePatches(patches));
       if (fingerprint(f) !== original) throw Error("\u8FD8\u539F\u540E\u51E0\u4F55\u3001\u6587\u5B57\u6216\u989C\u8272\u5C5E\u6027\u65AD\u8A00\u5931\u8D25");
@@ -523,7 +546,7 @@
     if (!message || typeof message !== "object") return;
     const m = message;
     if (m.type === "ready") {
-      send("connected", { version: "1.0.2" });
+      send("connected", { version: "1.0.3" });
       await ready;
       send("init", { library, busy, warning: startupWarning });
       return;

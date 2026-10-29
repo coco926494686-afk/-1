@@ -7,7 +7,20 @@ export interface Slot {
 }
 export interface Scan { frame:FrameNode; slots:Slot[]; colors:ColorInfo[]; issues:Issue[]; nodes:number }
 export interface Patch { slot:Slot; before:Value; after:Value }
-export const same=(a:unknown,b:unknown):boolean=>JSON.stringify(a)===JSON.stringify(b);
+/** Figma round-trips RGB(A) as float32. Keep the tolerance far below one 8-bit step. */
+export function same(a:unknown,b:unknown,inColor=false):boolean {
+ if(typeof a==='number'&&typeof b==='number')return inColor?Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=1e-6:Object.is(a,b);
+ if(a===b)return true;
+ if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
+ if(Array.isArray(a)!==Array.isArray(b))return false;
+ if(Array.isArray(a)&&Array.isArray(b))return a.length===b.length&&a.every((v,i)=>same(v,b[i]));
+ const x=a as Record<string,unknown>,y=b as Record<string,unknown>;
+ const keys=Object.keys(x).filter(k=>x[k]!==undefined).sort(),other=Object.keys(y).filter(k=>y[k]!==undefined).sort();
+ return keys.length===other.length&&keys.every((k,i)=>k===other[i]&&same(x[k],y[k],inColor||k==='color'||k==='secondaryColor'));
+}
+export function mismatch(actual:unknown,expected:unknown):string {
+ return '预期 '+JSON.stringify(expected).slice(0,500)+'；实际 '+JSON.stringify(actual).slice(0,500);
+}
 const copy=<T>(x:T):T=>structuredCloneSafe(x);
 function bound(value:unknown):boolean {
  if(!value||typeof value!=='object')return false;
@@ -101,10 +114,16 @@ export async function prepareFonts(patches:Patch[],load:(font:FontName)=>Promise
 export function execute(patches:Patch[]):void {
  for(const p of patches)if(p.slot.node.removed||!same(p.slot.read(),p.before))throw Error('应用前图层已变化，请重新扫描');
  const done:Patch[]=[];
- try {for(const p of patches){p.slot.write(copy(p.after));done.push(p);p.slot.expected=copy(p.after);}}
+ try {for(const p of patches){
+   const requested=copy(p.after);p.slot.write(requested);done.push(p);
+   const actual=copy(p.slot.read());
+   if(!same(actual,requested))throw Error(p.slot.node.name+' / '+p.slot.property+' 颜色写入校验失败：'+mismatch(actual,requested));
+   // Record canonical host values, not requested doubles, for undo and subsequent switches.
+   p.after=actual;p.slot.expected=copy(actual);
+  }}
  catch(error){
   let failed=false;
-  for(const p of done.reverse())try{p.slot.write(copy(p.before));p.slot.expected=copy(p.before);}catch{failed=true;}
+  for(const p of done.reverse())try{p.slot.write(copy(p.before));p.slot.expected=copy(p.slot.read());}catch{failed=true;}
   throw Error(failed?'写入失败且部分回滚被 Figma 拒绝，请立即使用 Figma 撤销':`写入失败，已回滚：${String(error)}`);
  }
 }
@@ -120,5 +139,9 @@ export function fingerprint(node:SceneNode):string {
  if(node.type==='TEXT')data.runs=node.getStyledTextSegments(['fills','fillStyleId','fontName','fontSize','textStyleId','textCase','textDecoration','letterSpacing','lineHeight','hyperlink','listOptions','indentation']);
  if(typeof node.getPluginDataKeys==='function')data.pluginData=Object.fromEntries(node.getPluginDataKeys().map(k=>[k,node.getPluginData(k)]));
  if('children'in node)data.children=node.children.map(fingerprint);
- return JSON.stringify(data);
+ // Stable keys prevent a host object's property order from looking like a document edit.
+ return JSON.stringify(data,(_key,value)=>{
+  if(value&&typeof value==='object'&&!Array.isArray(value))return Object.fromEntries(Object.keys(value).sort().map(k=>[k,value[k]]));
+  return value;
+ });
 }

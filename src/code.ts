@@ -1,5 +1,5 @@
 import { emptyLibrary, extendLibrary, Library, Theme, validateLibrary } from './model';
-import { execute, fingerprint, Patch, plan, prepareFonts, reversePatches, same, Scan, scanFrame, themedValue } from './engine';
+import { execute, fingerprint, Patch, plan, prepareFonts, reversePatches, same, mismatch, Scan, scanFrame, themedValue } from './engine';
 declare const __html__:string;
 figma.showUI(__html__,{width:1040,height:760,themeColors:true});
 const STORE='frame-skin-library-v1';
@@ -101,7 +101,8 @@ async function testFixture(){
   const patches=plan(test,lib,theme);await prepareFonts(patches,font=>figma.loadFontAsync(font));
   if(figma.currentPage.id!==page.id)throw Error('测试期间页面已变化');
   execute(patches);
-  if(!patches.length||!test.slots.every(slot=>same(slot.read(),themedValue(slot.original,lib,theme))))throw Error('颜色替换断言失败');
+  if(!patches.length)throw Error('测试未产生任何替换，验证未通过');
+  for(const slot of test.slots){const expected=themedValue(slot.original,lib,theme);if(!same(slot.read(),expected))throw Error('颜色替换校验失败：'+slot.node.name+' / '+slot.property+'；'+mismatch(slot.read(),expected));}
   if(!test.issues.some(i=>i.reason.includes('渐变'))||!test.issues.some(i=>i.reason.includes('锁定')))throw Error('兼容性检查断言失败');
   execute(reversePatches(patches));
   if(fingerprint(f)!==original)throw Error('还原后几何、文字或颜色属性断言失败');
@@ -117,7 +118,7 @@ figma.ui.onmessage=async(message:unknown)=>{
  if(!message||typeof message!=='object')return;
  const m=message as {type:string;library?:unknown;themeId?:unknown;themeIds?:unknown};
  // The UI may mount after storage finishes. Reply only after its ready handshake.
- if(m.type==='ready'){send('connected',{version:'1.0.2'});await ready;send('init',{library,busy,warning:startupWarning});return;}
+ if(m.type==='ready'){send('connected',{version:'1.0.3'});await ready;send('init',{library,busy,warning:startupWarning});return;}
  if(busy){send('error',{message:'正在处理上一项操作，请稍候'});return;}busy=true;send('busy',{busy:true});
  try{
   await ready;

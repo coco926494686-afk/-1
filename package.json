@@ -1,6 +1,6 @@
 {
   "name": "frame-skin-free",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Free, local Figma frame theme plugin without Variables Modes",
   "scripts": {
