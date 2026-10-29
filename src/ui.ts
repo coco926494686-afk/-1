@@ -1,7 +1,7 @@
 import { ColorInfo, emptyLibrary, Library, replacement, Theme, uid, validHex, validateLibrary } from './model';
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 let lib:Library=emptyLibrary(),active='',colors:ColorInfo[]=[],checked=new Set<string>(),scanned=false,fixturePassed=false,busy=true,canUndo=false,dirty=false,thumbURL='';
-let initialized=false,startupAttempts=0;
+let initialized=false,connected=false,storageReady=true,startupAttempts=0;
 let startupTimer:ReturnType<typeof setTimeout>|undefined;
 let pendingConfirm:(()=>void)|null=null;
 const post=(type:string,extra:Record<string,unknown>={})=>parent.postMessage({pluginMessage:{type,...extra}},'*');
@@ -106,12 +106,14 @@ $<HTMLInputElement>('file').onchange=async()=>{
  try{const next=validateLibrary(JSON.parse(await file.text()));confirmAction('导入主题库',`用文件中的 ${next.themes.length} 套主题和 ${next.tokens.length} 个 Token 替换当前主题库？建议先导出备份。画布不会改变。`,()=>{lib=next;active=lib.themes[0]?.id||'';checked=new Set(active?[active]:[]);changed();render();status('已载入 JSON，请检查映射后保存主题库。');});}catch(e){status('导入失败：'+String(e),'error');}
 };
 function receive(event:MessageEvent){
- // Figma native bridges can dispatch with source=null or source=window.
- if(event.source&&event.source!==parent&&event.source!==window)return;
+ // Figma delivers pluginMessage through its native bridge; WindowProxy identity
+ // varies across desktop/web hosts. Validate the payload, not event.source.
  const m=event.data?.pluginMessage;if(!m||typeof m.type!=='string')return;
+ if(m.type==='connected'){connected=true;status('已连接 Figma，正在读取本地主题库…');return;}
+ if(typeof m.storageReady==='boolean')storageReady=m.storageReady;
  if(m.type==='init'||m.type==='scan'||m.type==='saved'){
   if(m.type==='init'){if(initialized)return;initialized=true;clearTimeout(startupTimer);busy=!!m.busy;status(m.warning||'连接成功。请选择一个 Frame，再点击“扫描当前 Frame”。',m.warning?'error':'');}
-  if(m.library){lib=validateLibrary(m.library);if(!lib.themes.some(t=>t.id===active))active=lib.themes[0]?.id||'';checked=new Set([...checked].filter(id=>lib.themes.some(t=>t.id===id)));if(!checked.size&&active)checked.add(active);dirty=false;$('storage-state').textContent='主题保存在插件本地，可用 JSON 备份。';}
+  if(m.library){lib=validateLibrary(m.library);if(!lib.themes.some(t=>t.id===active))active=lib.themes[0]?.id||'';checked=new Set([...checked].filter(id=>lib.themes.some(t=>t.id===id)));if(!checked.size&&active)checked.add(active);dirty=false;$('storage-state').textContent=storageReady?'主题保存在插件本地，可用 JSON 备份。':'本地存储不可用：仅当前会话有效，请导出 JSON 备份。';}
   if(m.type==='scan'){
    scanned=true;canUndo=false;colors=m.colors;fixturePassed=!!m.fixturePassed;$('frame-name').textContent=m.name;$('frame-stats').textContent=`${m.nodes} 个扫描图层 · ${colors.length} 种可编辑源颜色 · ${m.slots} 个颜色属性（含文字区间）`;
    const issues=$('issues');issues.replaceChildren();for(const item of m.issues){const p=document.createElement('div');p.className='issue-item';p.textContent=item.node+'：'+item.reason;issues.append(p);}
@@ -137,7 +139,7 @@ function connect(){
  startupTimer=setTimeout(()=>{
   if(initialized)return;
   if(startupAttempts<3)connect();
-  else{status('未收到 Figma 响应，请点击“重试连接”；仍无响应时请关闭并重新运行插件。','error');$('reconnect').hidden=false;buttonState();}
+  else{status(connected?'Figma 已连接，但主题库初始化未完成。请在开发控制台查看错误。':'未收到 Figma 主程序响应。请点击“重试连接”，或在开发控制台查看红色错误。','error');$('reconnect').hidden=false;buttonState();}
  },2000);
 }
 $('reconnect').onclick=()=>{startupAttempts=0;connect();};

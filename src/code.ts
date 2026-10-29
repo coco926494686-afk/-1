@@ -3,10 +3,11 @@ import { execute, fingerprint, Patch, plan, prepareFonts, reversePatches, same, 
 declare const __html__:string;
 figma.showUI(__html__,{width:1040,height:760,themeColors:true});
 const STORE='frame-skin-library-v1';
+let storageReady=false;
 let library:Library=emptyLibrary(),scan:Scan|null=null,pageId='',guard='',busy=false;
 let undo:({kind:'apply';patches:Patch[]}|{kind:'batch';frames:FrameNode[];fingerprints:string[]})[]=[];
 let fixturePassed=false;
-const send=(type:string,data:Record<string,unknown>={})=>figma.ui.postMessage({type,...data});
+const send=(type:string,data:Record<string,unknown>={})=>figma.ui.postMessage({type,storageReady,...data});
 const errorText=(e:unknown)=>e instanceof Error?e.message:String(e);
 function selectedFrame():FrameNode {
  const selection=figma.currentPage.selection;
@@ -23,7 +24,11 @@ function ensure():Scan {
 function selectedTheme(id:unknown):Theme {
  const theme=library.themes.find(t=>t.id===id);if(!theme)throw Error('主题不存在');return theme;
 }
-async function saveLibrary(value:unknown){const checked=validateLibrary(value);await figma.clientStorage.setAsync(STORE,checked);library=checked;}
+async function bounded<T>(promise:Promise<T>,ms:number):Promise<T>{
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{return await Promise.race([promise,new Promise<T>((_,reject)=>{timer=setTimeout(()=>reject(Error('本地存储响应超时')),ms);})]);}finally{clearTimeout(timer);}
+}
+async function saveLibrary(value:unknown){const checked=validateLibrary(value);if(storageReady)await bounded(figma.clientStorage.setAsync(STORE,checked),3000);library=checked;}
 async function doScan(){
  const frame=selectedFrame(),page=figma.currentPage.id;
  const result=scanFrame(frame,figma.mixed);
@@ -104,17 +109,15 @@ async function testFixture(){
   await doScan();send('done',{message:`测试通过：${test.slots.length} 个颜色属性替换准确，撤销后全部属性一致；渐变和锁定层已跳过。现在可选择标准 Frame 扫描并批量生成。`,canUndo:false,fixturePassed:true});
  }catch(e){if(!f.removed)f.remove();throw e;}
 }
-figma.on('selectionchange',()=>{if(scan&&(figma.currentPage.id!==pageId||figma.currentPage.selection.length!==1||figma.currentPage.selection[0].id!==scan.frame.id))send('stale',{message:'选择已变化，请扫描当前 Frame。'});});
-figma.on('currentpagechange',()=>{scan=null;undo=[];send('stale',{message:'页面已变化，请重新扫描。'});});
 let startupWarning='';
 const ready:Promise<void>=(async()=>{
- try{const stored=await figma.clientStorage.getAsync(STORE);if(stored)library=validateLibrary(stored);}catch(e){startupWarning='本地主题库读取失败：'+errorText(e)+'。可通过 JSON 导入恢复；未自动覆盖存储。';}
+ try{const stored=await bounded(figma.clientStorage.getAsync(STORE),2000);if(stored)library=validateLibrary(stored);storageReady=true;}catch(e){startupWarning='本地主题库读取失败：'+errorText(e)+'。本次使用会话主题库，不覆盖原存储；请导出 JSON 备份。';}
 })();
 figma.ui.onmessage=async(message:unknown)=>{
  if(!message||typeof message!=='object')return;
  const m=message as {type:string;library?:unknown;themeId?:unknown;themeIds?:unknown};
  // The UI may mount after storage finishes. Reply only after its ready handshake.
- if(m.type==='ready'){await ready;send('init',{library,busy,warning:startupWarning});return;}
+ if(m.type==='ready'){send('connected',{version:'1.0.2'});await ready;send('init',{library,busy,warning:startupWarning});return;}
  if(busy){send('error',{message:'正在处理上一项操作，请稍候'});return;}busy=true;send('busy',{busy:true});
  try{
   await ready;
@@ -127,3 +130,9 @@ figma.ui.onmessage=async(message:unknown)=>{
   else throw Error('不支持的操作');
  }catch(e){send('error',{message:errorText(e)});}finally{busy=false;send('busy',{busy:false});}
 };
+
+// Install the message handler before optional event subscriptions.
+try{
+figma.on('selectionchange',()=>{if(scan&&(figma.currentPage.id!==pageId||figma.currentPage.selection.length!==1||figma.currentPage.selection[0].id!==scan.frame.id))send('stale',{message:'选择已变化，请扫描当前 Frame。'});});
+figma.on('currentpagechange',()=>{scan=null;undo=[];send('stale',{message:'页面已变化，请重新扫描。'});});
+}catch(e){startupWarning+=' Figma 事件监听失败：'+errorText(e);}

@@ -6,12 +6,14 @@ try {
  const page=await browser.newPage({viewport:{width:1040,height:760},deviceScaleFactor:1});const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.setContent('<iframe title="Figma Plugin" style="border:0;position:fixed;inset:0;width:100%;height:100%"></iframe>');
  await page.evaluate(html=>{window.requests=[];window.addEventListener('message',e=>{if(e.source===document.querySelector('iframe').contentWindow)window.requests.push(e.data.pluginMessage);});document.querySelector('iframe').srcdoc=html;},await readFile('dist/ui.html','utf8'));
- const ui=page.frameLocator('iframe');await ui.locator('#frame-name').waitFor();
+ const ui=page.frameLocator('iframe[title="Figma Plugin"]');await ui.locator('#frame-name').waitFor();
  const library={version:1,tokens:[{id:'surface',name:'表面 / 卡片'},{id:'text',name:'文字 / 主要'},{id:'accent',name:'品牌 / 强调'}],mappings:[{source:'#FFFFFF',tokenId:'surface'},{source:'#111111',tokenId:'text'},{source:'#2563EB',tokenId:'accent'}],themes:Array.from({length:24},(_,i)=>({id:'theme-'+i,name:i?'主题 '+(i+1):'经典蓝',colors:{surface:i%2?'#1E293B':'#FFFFFF',text:i%2?'#F1F5F9':'#111111',accent:i%2?'#60A5FA':'#2563EB'}}))};
  async function send(m){await page.evaluate(m=>document.querySelector('iframe').contentWindow.postMessage({pluginMessage:m},'*'),m);}
+ // Use a sibling WindowProxy, as native Figma bridge identities need not be parent/self.
+ await page.evaluate(()=>{const bridge=document.createElement('iframe');bridge.id='native-bridge';bridge.hidden=true;document.body.append(bridge);});
  // Reproduce a late host reply through Figma's native (source=null) event bridge.
  await page.waitForFunction(()=>window.requests.some(m=>m.type==='ready'));
- await page.evaluate(library=>document.querySelector('iframe').contentWindow.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:null})),library);
+ await page.evaluate(library=>document.querySelector('iframe').contentWindow.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:document.getElementById('native-bridge').contentWindow})),library);
  await send({type:'init',library});await ui.locator('.theme-row').nth(23).waitFor();assert.equal(await ui.locator('.theme-row').count(),24);
  assert(await ui.locator('#apply').isDisabled());assert(await ui.locator('#scan').isEnabled());assert(await ui.locator('#reconnect').isHidden());
  await send({type:'scan',library,name:'Mobile / Standard',nodes:12,slots:8,colors:[{source:'#FFFFFF',count:2,roles:['填充']},{source:'#111111',count:3,roles:['文字']},{source:'#2563EB',count:3,roles:['填充','描边']}],issues:[{node:'Image',reason:'图片填充保持原样'}],fixturePassed:false});
@@ -45,5 +47,5 @@ try {
  await retryPage.evaluate(library=>{const w=document.querySelector('iframe').contentWindow;w.dispatchEvent(new MessageEvent('message',{data:{pluginMessage:{type:'init',library}},source:w}));},library);
  await retryPage.waitForFunction(()=>!document.querySelector('iframe').contentDocument.getElementById('scan').disabled);
  assert(await retryUI.locator('#scan').isEnabled());await retryPage.close();
- assert.deepEqual(errors,[]);console.log('UI: native source=null startup handshake, delayed initialization, duplicate init, timeout and retry, 24 presets, theme edits, mapping, token CRUD, JSON export/import, validation, batch gating, stale/busy guards: PASS');
+ assert.deepEqual(errors,[]);console.log('UI: native foreign WindowProxy startup handshake, delayed initialization, duplicate init, timeout and retry, 24 presets, theme edits, mapping, token CRUD, JSON export/import, validation, batch gating, stale/busy guards: PASS');
 }finally{await browser.close();}

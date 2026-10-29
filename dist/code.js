@@ -304,6 +304,7 @@
   // src/code.ts
   figma.showUI(__html__, { width: 1040, height: 760, themeColors: true });
   var STORE = "frame-skin-library-v1";
+  var storageReady = false;
   var library = emptyLibrary();
   var scan = null;
   var pageId = "";
@@ -311,7 +312,7 @@
   var busy = false;
   var undo = [];
   var fixturePassed = false;
-  var send = (type, data = {}) => figma.ui.postMessage(__spreadValues({ type }, data));
+  var send = (type, data = {}) => figma.ui.postMessage(__spreadValues({ type, storageReady }, data));
   var errorText = (e) => e instanceof Error ? e.message : String(e);
   function selectedFrame() {
     const selection = figma.currentPage.selection;
@@ -333,9 +334,19 @@
     if (!theme) throw Error("\u4E3B\u9898\u4E0D\u5B58\u5728");
     return theme;
   }
+  async function bounded(promise, ms) {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Error("\u672C\u5730\u5B58\u50A8\u54CD\u5E94\u8D85\u65F6")), ms);
+      })]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   async function saveLibrary(value) {
     const checked = validateLibrary(value);
-    await figma.clientStorage.setAsync(STORE, checked);
+    if (storageReady) await bounded(figma.clientStorage.setAsync(STORE, checked), 3e3);
     library = checked;
   }
   async function doScan() {
@@ -498,27 +509,21 @@
       throw e;
     }
   }
-  figma.on("selectionchange", () => {
-    if (scan && (figma.currentPage.id !== pageId || figma.currentPage.selection.length !== 1 || figma.currentPage.selection[0].id !== scan.frame.id)) send("stale", { message: "\u9009\u62E9\u5DF2\u53D8\u5316\uFF0C\u8BF7\u626B\u63CF\u5F53\u524D Frame\u3002" });
-  });
-  figma.on("currentpagechange", () => {
-    scan = null;
-    undo = [];
-    send("stale", { message: "\u9875\u9762\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u3002" });
-  });
   var startupWarning = "";
   var ready = (async () => {
     try {
-      const stored = await figma.clientStorage.getAsync(STORE);
+      const stored = await bounded(figma.clientStorage.getAsync(STORE), 2e3);
       if (stored) library = validateLibrary(stored);
+      storageReady = true;
     } catch (e) {
-      startupWarning = "\u672C\u5730\u4E3B\u9898\u5E93\u8BFB\u53D6\u5931\u8D25\uFF1A" + errorText(e) + "\u3002\u53EF\u901A\u8FC7 JSON \u5BFC\u5165\u6062\u590D\uFF1B\u672A\u81EA\u52A8\u8986\u76D6\u5B58\u50A8\u3002";
+      startupWarning = "\u672C\u5730\u4E3B\u9898\u5E93\u8BFB\u53D6\u5931\u8D25\uFF1A" + errorText(e) + "\u3002\u672C\u6B21\u4F7F\u7528\u4F1A\u8BDD\u4E3B\u9898\u5E93\uFF0C\u4E0D\u8986\u76D6\u539F\u5B58\u50A8\uFF1B\u8BF7\u5BFC\u51FA JSON \u5907\u4EFD\u3002";
     }
   })();
   figma.ui.onmessage = async (message) => {
     if (!message || typeof message !== "object") return;
     const m = message;
     if (m.type === "ready") {
+      send("connected", { version: "1.0.2" });
       await ready;
       send("init", { library, busy, warning: startupWarning });
       return;
@@ -555,4 +560,16 @@
       send("busy", { busy: false });
     }
   };
+  try {
+    figma.on("selectionchange", () => {
+      if (scan && (figma.currentPage.id !== pageId || figma.currentPage.selection.length !== 1 || figma.currentPage.selection[0].id !== scan.frame.id)) send("stale", { message: "\u9009\u62E9\u5DF2\u53D8\u5316\uFF0C\u8BF7\u626B\u63CF\u5F53\u524D Frame\u3002" });
+    });
+    figma.on("currentpagechange", () => {
+      scan = null;
+      undo = [];
+      send("stale", { message: "\u9875\u9762\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u3002" });
+    });
+  } catch (e) {
+    startupWarning += " Figma \u4E8B\u4EF6\u76D1\u542C\u5931\u8D25\uFF1A" + errorText(e);
+  }
 })();
